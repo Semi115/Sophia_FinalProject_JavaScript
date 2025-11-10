@@ -27,7 +27,7 @@ var config = {
     height: SCREEN_HEIGHT,
     physics: {
         default: 'arcade' // arcade physics engine helps leverage collisions between objects
-    }
+    },
 };
 
 //================================================================================
@@ -56,18 +56,7 @@ class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are st
         }
     }
 
-    moveUp() {
-        if (this.y > 0) {
-            this.y -= this.deltaY;
-        }
-    }
 
-    moveDown() {
-
-        if (this.y < SCREEN_HEIGHT) {
-            this.y += this.deltaY;
-        }
-    }
 
     preUpdate(time, delta) {
         super.preUpdate(time, delta);
@@ -78,13 +67,14 @@ class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are st
 
 class Scene1 extends Phaser.Scene { // This is where the scene is being created
 
-    constructor(config) {
-        super(config);
+    constructor() {
+        super('scene1');
     }
 
     preload() {
         this.load.image('ship', 'assets/SpaceShooterRedux/PNG/mainShip_fullhealth.png'); // Changed the ship png to one from itch.io (Done by me)
-        this.load.image('space', 'assets/Backgrounds/AnimatedSpace_1.gif') // Added this starry background as well (Done by me)
+        this.load.image('space', 'assets/Backgrounds/AnimatedSpace_1.gif'); // Added this starry background as well (Done by me)
+        this.load.image('enemy', 'assets/SpaceShooterRedux/PNG/enemyRed1.png'); //Enemy is now added (Done by me)
     }
 
     create() {
@@ -95,7 +85,32 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         this.cursors = this.input.keyboard.createCursorKeys(); //Ship added next after the background. This first part detects keyboard inputs like arrow keys
         this.myShip = new Ship(this, 400, 500); //Ship instance is then created and added to said scene
         this.add.existing(this.myShip);
+
+        this.createEnemies();
     }
+        
+
+    createEnemies () {
+        this.enemies = this.physics.add.group(); //Group created to hold enemy sprites, taken from https://workshops.nuevofoundation.org/phaser-space-invaders-game/activity-4/
+
+        
+            let enemy = this.enemies.create(100, 200, 'enemy'); //enemy sprites created at a random x position across the screen
+            enemy.setScale(2); //scaled up a bit so it is visible
+            enemy.setVelocityY(30); //small downward velocity so it can move
+            enemy.setVelocityX(-50);
+
+            let enemy2 = this.enemies.create(400, 100, 'enemy');
+            enemy2.setScale(2);
+            enemy2.setVelocityY(30);
+            enemy2.setVelocityX(-50);
+
+            let enemy3 = this.enemies.create(600, 100, 'enemy');
+            enemy3.setScale(2);
+            enemy3.setVelocityY(30);
+            enemy3.setVelocityX(-50);
+
+    }
+    
 
     update() { //Basic controls for moving the ship
         if (this.cursors.left.isDown) {
@@ -106,14 +121,6 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
             this.myShip.moveRight();
         }
 
-        if (this.cursors.up.isDown) {
-            this.myShip.moveUp();
-        }
-
-        if (this.cursors.down.isDown) {
-            this.myShip.moveDown();
-        }
-
         if (this.cursors.space.isDown) {
             // shooting guns goes here
         }
@@ -121,6 +128,6 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
 }
 
 var game = new Phaser.Game(config); // Game configuration information is associated to a new game, and the scene is added.
-game.scene.add('scene1', Scene1, true, { x: 400, y: 300 });
-
+game.scene.add('scene1', Scene1, true, { x: 400, y: 300 }); 
 // Phaser 3 Tutorial Code build ends here
+
