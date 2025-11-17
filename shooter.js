@@ -22,11 +22,15 @@
 var SCREEN_WIDTH = 800; // Screen width and size have been set to a fair amount
 var SCREEN_HEIGHT = 600;
 var config = {
+     
     type: Phaser.AUTO,
     width: SCREEN_WIDTH,
     height: SCREEN_HEIGHT,
     physics: {
-        default: 'arcade' // arcade physics engine helps leverage collisions between objects
+        default: 'arcade',
+        arcade: {
+            debug: false
+        }
     },
 };
 
@@ -35,7 +39,9 @@ var config = {
 class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are stored in this class
 
     constructor(scene, x , y) {
-        super(scene, x, y); // “super” and “setPosition” associates the sprite with the parent scene and location. 
+        super(scene, x, y, 'ship'); // “super” and “setPosition” associates the sprite with the parent scene and location.
+        scene.add.existing(this);
+        scene.physics.add.existing(this);  
         this.setTexture('ship');
         this.setPosition(x, y);
 
@@ -45,13 +51,13 @@ class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are st
     }
 
     moveLeft() {
-        if (this.x > 0) {
+        if (this.x > this.width / 2) { // The ship can no longer go offscreen because I implemented Boundary checks. 
             this.x -= this.deltaX;
         }
     }
 
     moveRight() {
-        if (this.x < SCREEN_WIDTH) {
+        if (this.x < SCREEN_WIDTH - this.width / 2) {
             this.x += this.deltaX;
         }
     }
@@ -74,7 +80,10 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
     preload() {
         this.load.image('ship', 'assets/SpaceShooterRedux/PNG/mainShip_fullhealth.png'); // Changed the ship png to one from itch.io (Done by me)
         this.load.image('space', 'assets/Backgrounds/AnimatedSpace_1.gif'); // Added this starry background as well (Done by me)
-        this.load.image('enemy', 'assets/SpaceShooterRedux/PNG/enemyRed1.png'); //Enemy is now added (Done by me)
+        this.load.image('enemy', 'assets/SpaceShooterRedux/PNG/Enemies/GreenAlien.png'); //Enemy is now added (Done by me)
+        this.load.image('explosion', 'assets/SpaceShooterRedux/PNG/Effects/Explosion02_frame2.png') //Explosion effect for when player is hit by an enemy or bullet
+        this.load.image('shipBullet', 'assets/SpaceShooterRedux/PNG/Lasers/pixelbullets/bullet0.png')
+        this.load.image('enemyBullet', 'assets/SpaceShooterRedux/PNG/Lasers/pixelbullets/bullet9.png')
     }
 
     create() {
@@ -83,36 +92,111 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         .setDisplaySize(SCREEN_WIDTH, SCREEN_HEIGHT); // Size is set to cover the whole screen (Done by me)
 
         this.cursors = this.input.keyboard.createCursorKeys(); //Ship added next after the background. This first part detects keyboard inputs like arrow keys
-        this.myShip = new Ship(this, 400, 500); //Ship instance is then created and added to said scene
-        this.add.existing(this.myShip);
+        this.myShip = new Ship(this, SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100); //Ship instance is then created and added to said scene.
+
+        this.playerBullets = this.physics.add.group();
+        this.lastShot = 0;
+
+        this.enemyBullets = this.physics.add.group();
 
         this.createEnemies();
+
+        this.physics.add.overlap(this.myShip, this.enemies, this.hitPlayer, null, this);
+
+        this.physics.add.overlap(this.playerBullets, this.enemies, this.hitEnemy, null, this);
+
+        this.physics.add.overlap(this.myShip, this.enemyBullets, this.hitPlayer, null, this);
+
+        this.time.addEvent({
+            delay: 2000,
+            callback: this.enemyShoot,
+            callbackScope: this,
+            loop: true
+        });
+
     }
         
 
     createEnemies () {
         this.enemies = this.physics.add.group(); //Group created to hold enemy sprites, taken from https://workshops.nuevofoundation.org/phaser-space-invaders-game/activity-4/
 
-        
-            let enemy = this.enemies.create(100, 200, 'enemy'); //enemy sprites created at a random x position across the screen
-            enemy.setScale(2); //scaled up a bit so it is visible
-            enemy.setVelocityY(30); //small downward velocity so it can move
-            enemy.setVelocityX(-50);
+            const rows = 4; //number of rows
+            const cols = 6; //number of columns
+            const startX = 150; //starting X position
+            const startY = 100; //starting Y position
+            const xSpacing = 80; //horizontal distance between enemies
+            const ySpacing = 60; //vertical distance between enemies
 
-            let enemy2 = this.enemies.create(400, 100, 'enemy');
-            enemy2.setScale(2);
-            enemy2.setVelocityY(30);
-            enemy2.setVelocityX(-50);
+            for (let row = 0; row < rows; row++) { //This nested loop creates a grid of enemies. Each loop iteration positions an enemy at (x, y) in a grid
+                for (let col = 0; col < cols; col++) { // row (outer loop) controls vertical placement (rows). col (inner loop) controls horizontal placement (columns).
+                    let x = startX + col * xSpacing; //xSpacing and ySpacing determine how tightly packed they are
+                    let y = startY + row * ySpacing;
+                    let enemy = this.enemies.create(x, y, 'enemy');
+                    enemy.setScale(1.5);
+                    enemy.setVelocityX(100); // Still makes the enemies move horizontally 
+                    
+                    enemy.startX = x; //This saves the original enemy formation position (for resetting their positions when they go offscreen)
+                    enemy.startY = y;
+                }
+            }
 
-            let enemy3 = this.enemies.create(600, 100, 'enemy');
-            enemy3.setScale(2);
-            enemy3.setVelocityY(30);
-            enemy3.setVelocityX(-50);
+            this.enemyTimer = this.time.addEvent ({ // This timer changes direction every 1.5 seconds, and goes on infinitely. (Taken from https://workshops.nuevofoundation.org/phaser-space-invaders-game/activity-5/)
+                delay: 1500,
+                callback: this.changeEnemyDirection,
+                callbackScope: this,
+                loop: true
+            });
 
     }
-    
 
-    update() { //Basic controls for moving the ship
+    changeEnemyDirection() {
+        this.enemies.children.iterate((enemy) => {
+            if (enemy) {
+                enemy.setVelocityX(enemy.body.velocity.x * -1); //Reverses Horizontal Velocity
+                enemy.y += 10; //Makes enemies move down by 10
+
+                
+            }
+        });
+    }
+
+    hitPlayer(player, enemy) {
+        enemy.destroy();
+        player.setActive(false).setVisible(false);
+        this.myShip.body.enable = false;
+
+        this.time.addEvent({
+            delay: 1000,
+            callback: this.resetPlayer,
+            callbackScope: this
+        });
+    }
+
+    resetPlayer() {
+        this.myShip.setPosition(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100);
+        this.myShip.setActive(true).setVisible(true);
+        this.myShip.body.enable = true;
+
+    }
+
+    hitEnemy(bullet, enemy) {
+        bullet.destroy();
+        enemy.destroy();
+    }
+
+    enemyShoot() {
+        if (this.enemies.countActive() === 0) return; 
+
+        let shooter = Phaser.Utils.Array.GetRandom(this.enemies.getChildren());
+        if (!shooter) return;
+
+        let bullet = this.enemyBullets.create(shooter.x, shooter.y + 20, 'enemyBullet');
+        bullet.setVelocityY(300);
+    }
+
+
+
+    update(time, delta) { //Basic controls for moving the ship
         if (this.cursors.left.isDown) {
             this.myShip.moveLeft();
         }
@@ -121,9 +205,19 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
             this.myShip.moveRight();
         }
 
-        if (this.cursors.space.isDown) {
-            // shooting guns goes here
+        if (this.cursors.space.isDown && time > this.lastShot) {
+            let bullet = this.playerBullets.create(this.myShip.x, this.myShip.y - 20, 'shipBullet');
+            bullet.setVelocityY(-300);
+            this.lastShot = time + 300;
         }
+
+        this.enemies.children.iterate(enemy => {
+            if (enemy.y > SCREEN_HEIGHT) {
+                enemy.x = enemy.startX; //Resets to original formation coordinates
+                enemy.y = enemy.startY; //Resets to original formation coordinates
+                enemy.setVelocityX(100); //Resets movement speed and direction
+            }
+        });
     }
 }
 
