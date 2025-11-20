@@ -41,13 +41,10 @@ class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are st
     constructor(scene, x , y) {
         super(scene, x, y, 'ship'); // “super” and “setPosition” associates the sprite with the parent scene and location.
         scene.add.existing(this);
-        scene.physics.add.existing(this);  
-        this.setTexture('ship');
-        this.setPosition(x, y);
+        scene.physics.add.existing(this);
 
         this.scene = scene;
         this.deltaX = 5;
-        this.deltaY = 5;
     }
 
     moveLeft() {
@@ -84,12 +81,26 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         this.load.image('explosion', 'assets/SpaceShooterRedux/PNG/Effects/Explosion02_frame2.png') //Explosion effect for when player is hit by an enemy or bullet
         this.load.image('shipBullet', 'assets/SpaceShooterRedux/PNG/Lasers/pixelbullets/bullet0.png')
         this.load.image('enemyBullet', 'assets/SpaceShooterRedux/PNG/Lasers/pixelbullets/bullet9.png')
+        this.load.audio('shipShootSFX', 'assets/SpaceShooterRedux/PNG/SFX/8bitLaser.wav');
+        this.load.audio('enemyShootSFX', 'assets/SpaceShooterRedux/PNG/SFX/beepBuzz.mp3');
+        this.load.audio('kaboomSFX', 'assets/SpaceShooterRedux/PNG/SFX/retroExplosion.wav');
+        this.load.audio('enemyHitSFX', 'assets/SpaceShooterRedux/PNG/SFX/foeHit.wav');
+        this.load.audio('triumph', 'assets/SpaceShooterRedux/PNG/SFX/victorySting.wav');
     }
 
     create() {
-        this.add.image(0, 0, 'space') // Space background is added (Done by me)
+
+        let bg = this.add.image(0, 0, 'space') // Space background is added (Done by me)
         .setOrigin(0, 0) // Anchored the top left corner of the image to top left of the screen (Done by me)
         .setDisplaySize(SCREEN_WIDTH, SCREEN_HEIGHT); // Size is set to cover the whole screen (Done by me)
+
+        bg.setTint(0x999999);
+
+        this.score = 0;
+        this.scoreText = this.add.text(SCREEN_WIDTH - 10, 10, 'Score: 0', {
+            font: '20px Consolas',
+            fill: '#fffc4bff'
+        }).setOrigin(1, 0);
 
         this.cursors = this.input.keyboard.createCursorKeys(); //Ship added next after the background. This first part detects keyboard inputs like arrow keys
         this.myShip = new Ship(this, SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100); //Ship instance is then created and added to said scene.
@@ -114,6 +125,18 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
             loop: true
         });
 
+        this.lives = 3; // The player starts with 3 lives
+
+        this.livesText = this.add.text(10, 10, 'Lives: ' + this.lives, {
+            font: '20px Consolas',
+            fill: '#a8fcf1ff'
+        });
+
+        this.shipShootSFX = this.sound.add('shipShootSFX', { volume: 0.4 });
+        this.enemyShootSFX = this.sound.add('enemyShootSFX', { volume: 0.4 });
+        this.kaboomSFX = this.sound.add('kaboomSFX', { volume: 0.4 });
+        this.enemyHitSFX = this.sound.add('enemyHitSFX', { volume: 0.5 });
+        this.triumph = this.sound.add('triumph', { volume: 0.5 });
     }
         
 
@@ -161,15 +184,53 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
     }
 
     hitPlayer(player, enemy) {
-        enemy.destroy();
-        player.setActive(false).setVisible(false);
-        this.myShip.body.enable = false;
+        if (!player.active || player.isInvincible) return;
 
-        this.time.addEvent({
-            delay: 1000,
-            callback: this.resetPlayer,
-            callbackScope: this
+        enemy.destroy();
+
+        let explosion = this.add.sprite(player.x, player.y, 'explosion');
+        explosion.setScale(1.3);
+        this.kaboomSFX.play();
+
+        this.myShip.body.enable = false;
+        this.myShip.setActive(false).setVisible(false);
+
+        this.enemies.children.iterate(enemy => {
+            enemy.body.enable = false; // enemy movement / collisions disabled when ship dies
         });
+
+        this.enemyTimer.paused = true; //enemy shooting timer paused during this duration
+
+        this.lives -= 1;
+        this.livesText.setText('Lives: ' + this.lives);
+
+        if (this.lives <= 0) {
+            this.time.addEvent({
+                delay: 500,
+                callback: () => {
+                    explosion.destroy();
+                    this.gameOver();
+                },
+                callbackScope: this
+            });
+        } else {
+            this.time.addEvent({
+                delay: 1000,
+                callback: () => {
+                    explosion.destroy();
+                    this.resetPlayer();
+
+                    this.enemies.children.iterate(enemy => {
+                        if (enemy.active) {
+                            enemy.body.enable = true;
+                        }
+                    });
+
+                    this.enemyTimer.paused = false;
+                },
+                callbackScope: this
+            });
+        }
     }
 
     resetPlayer() {
@@ -177,11 +238,34 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         this.myShip.setActive(true).setVisible(true);
         this.myShip.body.enable = true;
 
+        this.myShip.isInvincible = true;
+
+        this.tweens.add({ // Extra: A blinking effect while ths ship is invincible
+            targets: this.myShip,
+            alpha: 0.2,
+            duration: 200,
+            ease: 'Linear',
+            yoyo: true,
+            repeat: 5, // total duration = (repeat + 1) * duration * 2 = 2.4s
+            onComplete: () => {
+                this.myShip.alpha = 1;
+                this.myShip.isInvincible = false;
+            }
+        });
     }
 
     hitEnemy(bullet, enemy) {
         bullet.destroy();
         enemy.destroy();
+
+        this.enemyHitSFX.play();
+
+        this.score += 100; // Each enemy gives 100 points
+        this.scoreText.setText('Score: ' + this.score);
+
+        if (this.enemies.countActive() === 0) {
+            this.victory();
+        }
     }
 
     enemyShoot() {
@@ -192,11 +276,51 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
 
         let bullet = this.enemyBullets.create(shooter.x, shooter.y + 20, 'enemyBullet');
         bullet.setVelocityY(300);
+
+        this.enemyShootSFX.play();
+    }
+
+    gameOver() { //Game over screen, when the player is out of lives
+        this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 'GAME OVER', {
+            font: '40px Consolas',
+            fill: '#ff0000'
+        }).setOrigin(0.5);
+
+        this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 60, 'Refresh this Page to Restart', {
+            font: '20px Consolas',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+
+        this.myShip.setActive(false).setVisible(false);
+        this.enemies.children.iterate(enemy => enemy.body.enable = false);
+        this.enemyTimer.paused = true;
+
+        this.playerBullets.clear(true, true);
+        this.enemyBullets.clear(true, true);
+    }
+
+    victory() {
+        this.enemyTimer.paused = true;
+        this.myShip.setActive(false).setVisible(false);
+
+        this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 'Mission Complete!', {
+            font: '40px Consolas',
+            fill: '#00ff00'
+        }).setOrigin(0.5);
+
+        this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 60, 'Refresh this Page to Restart', {
+            font: '20px Consolas',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+
+        this.triumph.play();
     }
 
 
 
     update(time, delta) { //Basic controls for moving the ship
+        if (!this.myShip.active) return; //Stops update logic if player is "dead"
+
         if (this.cursors.left.isDown) {
             this.myShip.moveLeft();
         }
@@ -209,6 +333,8 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
             let bullet = this.playerBullets.create(this.myShip.x, this.myShip.y - 20, 'shipBullet');
             bullet.setVelocityY(-300);
             this.lastShot = time + 300;
+
+            this.shipShootSFX.play();
         }
 
         this.enemies.children.iterate(enemy => {
