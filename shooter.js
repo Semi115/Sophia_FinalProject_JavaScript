@@ -14,10 +14,12 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-// The following code below (unless noted with a 'done by me' label) is built off of this Phaser 3 Tutorial
+// The following code below is built off of this Phaser 3 Tutorial
 // for implementing a working ship for a space shooter 
-// Published by Michael on July 6, 2019
+// Published by Michael on July 6, 2019 
 // https://inspiredtoeducate.net/inspiredtoeducate/build-a-space-shooter-with-phaser3-and-javascripttutorial1/
+// (What he did was at least add the ship complete with controls and the background. I went on from there to include everything else.)
+// Things from the tutorial will be marked with a "From the tutorial" label in parentheses.
 
 var SCREEN_WIDTH = 800; // Screen width and size have been set to a fair amount
 var SCREEN_HEIGHT = 600;
@@ -36,10 +38,10 @@ var config = {
 
 //================================================================================
 
-class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are stored in this class
+class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are stored in this class (From the tutorial)
 
     constructor(scene, x , y) {
-        super(scene, x, y, 'ship'); // “super” and “setPosition” associates the sprite with the parent scene and location.
+        super(scene, x, y, 'ship'); // “super” and “setPosition” associates the sprite with the parent scene and location. (From the tutorial)
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
@@ -68,20 +70,20 @@ class Ship extends Phaser.GameObjects.Sprite  { // Properties of the ship are st
 
 //================================================================================
 
-class Scene1 extends Phaser.Scene { // This is where the scene is being created
+class Scene1 extends Phaser.Scene { // This is where the scene is being created (From the tutorial)
 
     constructor() {
         super('scene1');
     }
 
     preload() {
-        this.load.image('ship', 'assets/SpaceShooterRedux/PNG/mainShip_fullhealth.png'); // Changed the ship png to one from itch.io (Done by me)
-        this.load.image('space', 'assets/Backgrounds/AnimatedSpace_1.gif'); // Added this starry background as well (Done by me)
-        this.load.image('enemy', 'assets/SpaceShooterRedux/PNG/Enemies/GreenAlien.png'); //Enemy is now added (Done by me)
+        this.load.image('ship', 'assets/SpaceShooterRedux/PNG/mainShip_fullhealth.png'); // Changed the ship png to one from itch.io
+        this.load.image('space', 'assets/Backgrounds/AnimatedSpace_1.gif'); // Added this starry background as well.
+        this.load.image('enemy', 'assets/SpaceShooterRedux/PNG/Enemies/GreenAlien.png'); //Enemy is now added
         this.load.image('explosion', 'assets/SpaceShooterRedux/PNG/Effects/Explosion02_frame2.png') //Explosion effect for when player is hit by an enemy or bullet
         this.load.image('shipBullet', 'assets/SpaceShooterRedux/PNG/Lasers/pixelbullets/bullet0.png')
         this.load.image('enemyBullet', 'assets/SpaceShooterRedux/PNG/Lasers/pixelbullets/bullet9.png')
-        this.load.audio('shipShootSFX', 'assets/SpaceShooterRedux/PNG/SFX/8bitLaser.wav');
+        this.load.audio('shipShootSFX', 'assets/SpaceShooterRedux/PNG/SFX/8bitLaser.wav'); // Sounds for the ship, enemies, explosions, hits, and victory have been implemented.
         this.load.audio('enemyShootSFX', 'assets/SpaceShooterRedux/PNG/SFX/beepBuzz.mp3');
         this.load.audio('kaboomSFX', 'assets/SpaceShooterRedux/PNG/SFX/retroExplosion.wav');
         this.load.audio('enemyHitSFX', 'assets/SpaceShooterRedux/PNG/SFX/foeHit.wav');
@@ -90,20 +92,20 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
 
     create() {
 
-        let bg = this.add.image(0, 0, 'space') // Space background is added (Done by me)
-        .setOrigin(0, 0) // Anchored the top left corner of the image to top left of the screen (Done by me)
-        .setDisplaySize(SCREEN_WIDTH, SCREEN_HEIGHT); // Size is set to cover the whole screen (Done by me)
+        let bg = this.add.image(0, 0, 'space') // Space background is added (From the tutorial)
+        .setOrigin(0, 0) // Anchored the top left corner of the image to top left of the screen (From the tutorial)
+        .setDisplaySize(SCREEN_WIDTH, SCREEN_HEIGHT); // Size is set to cover the whole screen (From the tutorial)
 
-        bg.setTint(0x999999);
+        bg.setTint(0x999999); // Background slightly tinted
 
-        this.score = 0;
-        this.scoreText = this.add.text(SCREEN_WIDTH - 10, 10, 'Score: 0', {
+        this.score = 0; // Score system
+        this.scoreText = this.add.text(SCREEN_WIDTH - 10, 10, 'Score: 0', { // 
             font: '20px Consolas',
             fill: '#fffc4bff'
         }).setOrigin(1, 0);
 
-        this.cursors = this.input.keyboard.createCursorKeys(); //Ship added next after the background. This first part detects keyboard inputs like arrow keys
-        this.myShip = new Ship(this, SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100); //Ship instance is then created and added to said scene.
+        this.cursors = this.input.keyboard.createCursorKeys(); //Ship added next after the background. This first part detects keyboard inputs like arrow keys (From the tutorial)
+        this.myShip = new Ship(this, SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100); //Ship instance is then created and added to said scene. (From the tutorial)
 
         this.playerBullets = this.physics.add.group();
         this.lastShot = 0;
@@ -112,13 +114,13 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
 
         this.createEnemies();
 
-        this.physics.add.overlap(this.myShip, this.enemies, this.hitPlayer, null, this);
+        this.physics.add.overlap(this.myShip, this.enemies, this.hitPlayer, null, this); // Physics for the ship, enemies, bullets, and enemy bullets.
 
         this.physics.add.overlap(this.playerBullets, this.enemies, this.hitEnemy, null, this);
 
         this.physics.add.overlap(this.myShip, this.enemyBullets, this.hitPlayer, null, this);
 
-        this.time.addEvent({
+        this.time.addEvent({ // Creates a repeating timed event in Phaser.
             delay: 2000,
             callback: this.enemyShoot,
             callbackScope: this,
@@ -127,12 +129,12 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
 
         this.lives = 3; // The player starts with 3 lives
 
-        this.livesText = this.add.text(10, 10, 'Lives: ' + this.lives, {
+        this.livesText = this.add.text(10, 10, 'Lives: ' + this.lives, { // Lives Indicator
             font: '20px Consolas',
             fill: '#a8fcf1ff'
         });
 
-        this.shipShootSFX = this.sound.add('shipShootSFX', { volume: 0.4 });
+        this.shipShootSFX = this.sound.add('shipShootSFX', { volume: 0.4 }); // Various Sound Effects, each with adjusted volume.
         this.enemyShootSFX = this.sound.add('enemyShootSFX', { volume: 0.4 });
         this.kaboomSFX = this.sound.add('kaboomSFX', { volume: 0.4 });
         this.enemyHitSFX = this.sound.add('enemyHitSFX', { volume: 0.5 });
@@ -188,7 +190,7 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
 
         enemy.destroy();
 
-        let explosion = this.add.sprite(player.x, player.y, 'explosion');
+        let explosion = this.add.sprite(player.x, player.y, 'explosion'); // Explosion sprite now implemented
         explosion.setScale(1.3);
         this.kaboomSFX.play();
 
@@ -204,7 +206,7 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         this.lives -= 1;
         this.livesText.setText('Lives: ' + this.lives);
 
-        if (this.lives <= 0) {
+        if (this.lives <= 0) { // Game Over sequence when the lives reach zero
             this.time.addEvent({
                 delay: 500,
                 callback: () => {
@@ -238,7 +240,7 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         this.myShip.setActive(true).setVisible(true);
         this.myShip.body.enable = true;
 
-        this.myShip.isInvincible = true;
+        this.myShip.isInvincible = true; // Invincible window when the ship respawns
 
         this.tweens.add({ // Extra: A blinking effect while ths ship is invincible
             targets: this.myShip,
@@ -254,7 +256,7 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         });
     }
 
-    hitEnemy(bullet, enemy) {
+    hitEnemy(bullet, enemy) { // Bullets destroy enemies
         bullet.destroy();
         enemy.destroy();
 
@@ -264,12 +266,12 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
         this.scoreText.setText('Score: ' + this.score);
 
         if (this.enemies.countActive() === 0) {
-            this.victory();
+            this.victory(); // No more enemies = Mission Complete
         }
     }
 
     enemyShoot() {
-        if (this.enemies.countActive() === 0) return; 
+        if (this.enemies.countActive() === 0) return; // Checks if any enemies are still alive. CountActive returns how many enemies are still on screen. The function immediately ends if there are none. What this does is prevent enemies from shooting after all of them are defeated.
 
         let shooter = Phaser.Utils.Array.GetRandom(this.enemies.getChildren());
         if (!shooter) return;
@@ -300,7 +302,7 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
     }
 
     victory() {
-        this.enemyTimer.paused = true;
+        this.enemyTimer.paused = true; // Victory Screen
         this.myShip.setActive(false).setVisible(false);
 
         this.add.text(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 'Mission Complete!', {
@@ -318,7 +320,7 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
 
 
 
-    update(time, delta) { //Basic controls for moving the ship
+    update(time, delta) { //Basic controls for moving the ship (From the tutorial)
         if (!this.myShip.active) return; //Stops update logic if player is "dead"
 
         if (this.cursors.left.isDown) {
@@ -347,7 +349,6 @@ class Scene1 extends Phaser.Scene { // This is where the scene is being created
     }
 }
 
-var game = new Phaser.Game(config); // Game configuration information is associated to a new game, and the scene is added.
+var game = new Phaser.Game(config); // Game configuration information is associated to a new game, and the scene is added. (From the tutorial)
 game.scene.add('scene1', Scene1, true, { x: 400, y: 300 }); 
-// Phaser 3 Tutorial Code build ends here
 
