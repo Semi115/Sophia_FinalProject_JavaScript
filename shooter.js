@@ -194,7 +194,7 @@ class Scene1 extends Phaser.Scene {
   }
 
   createEnemies() {
-    this.enemies = this.physics.add.group(); //Group created to hold enemy sprites, taken from https://workshops.nuevofoundation.org/phaser-space-invaders-game/activity-4/ . Was challenged to create a nested for loop for this enemy formation.
+    this.enemies = this.physics.add.group(); //Group created to hold enemy sprites, taken from https://workshops.nuevofoundation.org/phaser-space-invaders-game/activity-4/ . Was challenged to create a nested for loop for this enemy formation, which I did, and had AI assist in polishing it all up.
 
     const rows = 4; //number of rows
     const cols = 6; //number of columns
