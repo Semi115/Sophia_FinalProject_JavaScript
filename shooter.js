@@ -198,23 +198,23 @@ class Scene1 extends Phaser.Scene {
 
     const rows = 4; //number of rows
     const cols = 6; //number of columns
-    const startX = 150; //starting X position
-    const startY = 100; //starting Y position
-    const xSpacing = 80; //horizontal distance between enemies
-    const ySpacing = 60; //vertical distance between enemies
+    const xStart = 150; //starting X position
+    const yStart = 100; //starting Y position
+    const xSpace = 80; //horizontal distance between enemies
+    const ySpace = 60; //vertical distance between enemies
 
     for (let row = 0; row < rows; row++) {
       //This nested loop creates a grid of enemies. Each loop iteration positions an enemy at (x, y) in a grid
       for (let col = 0; col < cols; col++) {
         // row (outer loop) controls vertical placement (rows). col (inner loop) controls horizontal placement (columns).
-        let x = startX + col * xSpacing; //xSpacing and ySpacing determine how tightly packed they are
-        let y = startY + row * ySpacing;
+        let x = xStart + col * xSpace; //xSpacing and ySpacing determine how tightly packed they are
+        let y = yStart + row * ySpace;
         let enemy = this.enemies.create(x, y, "enemy");
         enemy.setScale(1.5);
         enemy.setVelocityX(100); // Still makes the enemies move horizontally
 
-        enemy.startX = x; //This saves the original enemy formation position (for resetting their positions when they go offscreen)
-        enemy.startY = y;
+        enemy.xStart = x; //This saves the original enemy formation position (for resetting their positions when they go offscreen)
+        enemy.yStart = y;
       }
     }
 
@@ -421,8 +421,8 @@ class Scene1 extends Phaser.Scene {
 
     this.enemies.children.iterate((enemy) => {
       if (enemy.y > SCREEN_HEIGHT) {
-        enemy.x = enemy.startX; //Resets to original formation coordinates
-        enemy.y = enemy.startY; //Resets to original formation coordinates
+        enemy.x = enemy.xStart; //Resets to original formation coordinates
+        enemy.y = enemy.yStart; //Resets to original formation coordinates
         enemy.setVelocityX(100); //Resets movement speed and direction
       }
     });
